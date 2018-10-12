@@ -86,23 +86,23 @@ void stmdfu_write_image(dfu_device *dfudev, char *file)
     dfusefile->images = (dfuse_image **)malloc(sizeof(dfuse_image *) *
                                                dfusefile->prefix->targets);
     for (i = 0; i < dfusefile->prefix->targets; i++) {
-        dfusefile->images[i] = (dfuse_image *)malloc(sizeof(dfuse_image));
-        dfusefile->images[i]->tarprefix =
+        dfuse_image *image = (dfuse_image *)malloc(sizeof(dfuse_image));
+        dfusefile->images[i] = image;
+        image->tarprefix =
             (dfuse_target_prefix *)malloc(sizeof(dfuse_target_prefix));
 
-        dfuse_readtarprefix(dfusefile, dfufile);
+        dfuse_readtarprefix(image, dfufile);
 
-        dfusefile->images[i]->imgelement = (dfuse_image_element **)malloc(
-            sizeof(dfuse_image_element *) *
-            dfusefile->images[i]->tarprefix->num_elements);
-        for (j = 0; j < dfusefile->images[i]->tarprefix->num_elements; j++) {
-            dfusefile->images[i]->imgelement[j] =
+        image->imgelement = (dfuse_image_element **)malloc(
+            sizeof(dfuse_image_element *) * image->tarprefix->num_elements);
+        for (j = 0; j < image->tarprefix->num_elements; j++) {
+            dfuse_image_element *el =
                 (dfuse_image_element *)malloc(sizeof(dfuse_image_element));
-            dfuse_readimgelement_meta(dfusefile, dfufile);
-            dfusefile->images[i]->imgelement[j]->data = (uint8_t *)malloc(
-                sizeof(uint8_t) *
-                dfusefile->images[i]->imgelement[j]->element_size);
-            dfuse_readimgelement_data(dfusefile, dfufile);
+            dfusefile->images[i]->imgelement[j] = el;
+
+            dfuse_readimgelement_meta(el, dfufile);
+            el->data = (uint8_t *)malloc(sizeof(uint8_t) * el->element_size);
+            dfuse_readimgelement_data(el, dfufile);
         }
     }
 
@@ -110,20 +110,21 @@ void stmdfu_write_image(dfu_device *dfudev, char *file)
 
     dfuse_readsuffix(dfusefile, dfufile);
 
-    dfu_set_address_pointer(
-        dfudev, dfusefile->images[0]->imgelement[0]->element_address);
-
-    printf("address pointer set\n");
-
-    dfu_make_idle(dfudev, 0);
-
-    printf("made idle\n");
-
-    writesize = dfusefile->images[0]->imgelement[0]->element_size / 2048;
-    writesize = (writesize + 1) * 2048;
-
-    dfu_write_flash(dfudev, dfusefile->images[0]->imgelement[0]->data,
-                    writesize);
+    for (i = 0; i < dfusefile->prefix->targets; i++) {
+        dfuse_image *image = dfusefile->images[i];
+        for (j = 0; j < image->tarprefix->num_elements; j++) {
+            dfuse_image_element *el = image->imgelement[j];
+            dfu_set_address_pointer(dfudev, el->element_address);
+            printf("address pointer set to %.8x\n", el->element_address);
+            dfu_make_idle(dfudev, 0);
+            printf("made idle\n");
+            writesize = el->element_size / FLASH_PAGE_BYTES;
+            writesize = (writesize + 1) * FLASH_PAGE_BYTES;
+            printf("flashing...");
+            dfu_write_flash(dfudev, el->data, writesize);
+            printf("done.\n");
+        }
+    }
 
     dfuse_struct_cleanup(dfusefile);
 }
@@ -279,8 +280,9 @@ dfu_device *find_dfu_device()
                                     .bInterfaceSubClass == DFU_ITF_SUBCLASS &&
                             cfgdesc->interface[k]
                                     .altsetting[l]
-                                    .bInterfaceProtocol == DFU_ITF_PROTOCOL &&
-                            !strncmp(strdesc, "@Internal Flash", 15)) {
+                                    .bInterfaceProtocol == DFU_ITF_PROTOCOL
+                            && !strncmp((const char*)strdesc, "@Internal Flash", 15)
+                            ) {
 #if STMDFU_DEBUG_PRINTFS
                             printf("\ndevice:\n");
                             printf("vendor:product <%x>:<%x>\n",

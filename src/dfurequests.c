@@ -106,7 +106,7 @@ int32_t dfu_download(dfu_device *device, int32_t wvalue, uint8_t* data, int32_t 
           /* bRequest      */ DFU_DNLOAD,
           /* wValue        */ wvalue,
           /* wIndex        */ device->interface,
-          /* Data          */ (char *) data,
+          /* Data          */ data,
           /* wLength       */ length,
                               DFU_TIMEOUT );
 
@@ -141,7 +141,7 @@ int32_t dfu_upload(dfu_device *device, int32_t wvalue, uint8_t* data, int32_t le
           /* bRequest      */ DFU_UPLOAD,
           /* wValue        */ wvalue,
           /* wIndex        */ device->interface,
-          /* Data          */ (char *) data,
+          /* Data          */ data,
           /* wLength       */ length,
                               DFU_TIMEOUT );
 
@@ -158,7 +158,7 @@ int32_t dfu_upload(dfu_device *device, int32_t wvalue, uint8_t* data, int32_t le
  */
 int32_t dfu_get_status( dfu_device *device, dfu_status *status )
 {
-    char buffer[6];
+    unsigned char buffer[6];
     int32_t result;
 	struct timespec req;
 	
@@ -261,7 +261,7 @@ int32_t dfu_clear_status( dfu_device *device )
 int32_t dfu_get_state( dfu_device *device )
 {
     int32_t result;
-    char buffer[1];
+    unsigned char buffer[1];
 
     if( (NULL == device) || (NULL == device->handle) ) {
         return -1;

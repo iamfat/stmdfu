@@ -15,6 +15,7 @@ protocol used in the STM32 Bootloader, AN3156.
 #define __DFU_COMMANDS__
 
 #define OPTION_BYTES_ADDRESS 0x1ffff800
+#define FLASH_PAGE_BYTES 1024
 
 /*
 dfu_read_flash() fills membuf with length bytes from flash memory.
